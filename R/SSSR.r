@@ -30,27 +30,13 @@ dbutil.openConnection<-function(){
 #we cannot read and write them from/to database tables as they are. dbutil.serialize() function
 #serializes given object and returns a character array.
 dbutil.serialize<-function(obj){
-	serializedObject<-serialize(obj,NULL);
-	myEmptyString<-"";
-	for (aChar in serializedObject){
-		myEmptyString<-paste(myEmptyString,aChar,sep="");
-	}
-	return(myEmptyString);
+	serializedObject<-rawToChar(serialize(obj,NULL,ascii=TRUE));
+	return(serializedObject);
 }
 
 #This function returns an R object for a given serialized R object.
 dbutil.unSerialize<-function(serializedObject){
-	n<-nchar(serializedObject);
-	myCharArr<-unlist(strsplit(serializedObject,""));
-	rawVect<-as.character(rep(0,n/2));
-	m<-1;
-	for (i in seq(1,n,2)){
-		coupledChar<-paste("0x",myCharArr[i],myCharArr[i+1],sep="");
-		rawVect[m]<-coupledChar;
-		m<-m+1;
-	}
-	rawVect<-as.raw(rawVect);
-	obj<-unserialize(rawVect);
+	obj<-unserialize(charToRaw(serializedObject));
 	return(obj);
 }
 
