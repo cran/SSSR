@@ -1,9 +1,10 @@
 Package: SSSR
 Type: Package
 Title: Server Side Scripting with R
-Version: 1.0.2
+Version: 1.0.3
 Date: 2010-06-22
 Author: Mehmet Hakan Satman
+URL: http://www.mhsatman.com
 Maintainer: Mehmet Hakan Satman <mhsatman@istanbul.edu.tr>
 LazyLoad: no
 Depends: RSQLite
@@ -11,5 +12,5 @@ Repository: CRAN
 Description: This package is for using R as a server side scripting
         language with session, application and cookie support
 License: GPL
-Date/Publication: 2010-11-23 16:28:14
-Packaged: 2010-11-23 09:03:21 UTC; hako
+Date/Publication: 2010-11-26 16:37:02
+Packaged: 2010-11-26 14:20:37 UTC; hako
