@@ -19,7 +19,8 @@ dbutil.openConnection<-function(){
 	if (is.null(db_Connection)){
 		require("RSQLite",quietly=TRUE);
 		db_Driver<<-sqliteInitDriver(max.con=128);
-		db_Connection<<-sqliteNewConnection(drv=db_Driver,dbname="/tmp/rsessions");
+		platform<-.Platform; sepr<-platform$file.sep;
+		db_Connection<<-sqliteNewConnection(drv=db_Driver,dbname=paste(dirname(tempdir()),sepr,"rsessions",sep=""));
 		res<-sqliteQuickSQL (db_Connection,"create table if not exists rsessions (id integer primary key asc, sessionid varchar(20), parameter varchar(255), value clob)");
 		res<-sqliteQuickSQL (db_Connection,"create table if not exists rapplication (id integer primary key asc, parameter varchar(255), value clob)");
 	}
