@@ -5,24 +5,31 @@
 #or calling SSSR.r as source file.
 
 #Public Variables
-db_Connection<-NULL;
-db_Driver<-NULL;
-defaultSessId<-"";
-documentStarted<-FALSE;
-std_in<-"";
+#db_Connection<-NULL;
+#assign("db_Connection", NULL, envir = globalenv() )
+#db_Driver<-NULL;
+assign("db_Driver", NULL, envir = globalenv() )
+#defaultSessId<-"";
+assign("defaultSessId", "", envir = globalenv() )
+#documentStarted<-FALSE;
+assign("documentStarted", FALSE, envir = globalenv() )
+#std_in<-"";
+assign("std_in", "", envir = globalenv() )
 
 #This function initializes SQLite driver,
 #creates a connection link to database under /tmp directory and
 #creates tables for session and application data
 #Maximum number of concurrent connections is 128
 dbutil.openConnection<-function(){
-	if (is.null(db_Connection)){
+	if (!exists("db_Connection", envir=globalenv())){
 		require("RSQLite",quietly=TRUE);
-		db_Driver<<-sqliteInitDriver(max.con=128);
+		driver<-sqliteInitDriver(max.con=128);
+		assign("db_Driver", driver, envir = globalenv())
 		platform<-.Platform; sepr<-platform$file.sep;
-		db_Connection<<-sqliteNewConnection(drv=db_Driver,dbname=paste(dirname(tempdir()),sepr,"rsessions_1_0_3",sep=""));
-		res<-sqliteQuickSQL (db_Connection,"create table if not exists rsessions (id integer primary key asc, sessionid varchar(20), parameter varchar(255), value clob)");
-		res<-sqliteQuickSQL (db_Connection,"create table if not exists rapplication (id integer primary key asc, parameter varchar(255), value clob)");
+		conn<-sqliteNewConnection(drv=driver,dbname=paste(dirname(tempdir()),sepr,"rsessions_1_0_3",sep=""));
+		assign("db_Connection", conn, envir = globalenv())
+		res<-sqliteQuickSQL (conn,"create table if not exists rsessions (id integer primary key asc, sessionid varchar(20), parameter varchar(255), value clob)");
+		res<-sqliteQuickSQL (conn,"create table if not exists rapplication (id integer primary key asc, parameter varchar(255), value clob)");
 	}
 }
 
@@ -99,13 +106,13 @@ request.getPOSTParameter<-function(paramName){
 	retValue<-"";
 	streamLen<-Sys.getenv("CONTENT_LENGTH");
 	if (streamLen<1) return("");
-	if (nchar(std_in)<1){
+	if (nchar( get("std_in", envir=globalenv()))<1){
 		myFile<-file("stdin");
 		content<-readChar(con=myFile, nchars=streamLen);
 		close(myFile);
-		std_in<<-content;
+		assign("std_in", content, envir = globalenv())
 	}
-	retValue<-request.getParameter(std_in,paramName);
+	retValue<-request.getParameter( get("std_in", envir=globalenv()), paramName);
 	return(URLdecode(retValue));
 }
 
@@ -124,7 +131,7 @@ response.sendError<-function(errStr){
 
 #Creates or changes cookies values 
 response.setCookie<-function(cookieName,cookieValue){
-	if (documentStarted) {
+	if (exists("documentStarted", envir = globalenv())) {
 		response.sendError("You can not set values of cookies after headers sent");
 	}
 	response.print(paste("Set-Cookie: ",cookieName,"=",cookieValue,";\n",sep=""));
@@ -133,21 +140,22 @@ response.setCookie<-function(cookieName,cookieValue){
 #Sends \n character to finalize document's header part
 response.startDocument<-function(){
 	response.print("\n");
-	documentStarted<<-TRUE;
+	assign("documentStarted", TRUE, envir = globalenv())
 }
 
 #Creates a random string using A-Z letters length of 20.
 #This random string determines the client for session functions.
 #Function searches session table for preventing the twice usage of same session id.
 session.getRandomSessionID<-function(){
-	aPass<-"";
+	aPass<-""
 	for (i in 1:20){
-		myUTF<-intToUtf8(as.integer(runif(1,65,86)));
-		aPass<-paste(aPass,myUTF,sep="");
+		myUTF<-intToUtf8(as.integer(runif(1,65,86)))
+		aPass<-paste(aPass,myUTF,sep="")
 	}
-	res<-sqliteQuickSQL (db_Connection,paste("select * from rsessions where sessionid='",aPass,"'",sep=""));
+	conn<-get("db_Connection", envir = globalenv())
+	res<-sqliteQuickSQL (conn ,paste("select * from rsessions where sessionid='",aPass,"'",sep=""))
 	if (dim(res)[1]>0){
-		aPass<-session.getRandomSessionID();
+		aPass<-session.getRandomSessionID()
 	}
 	return(aPass);
 }
@@ -157,10 +165,12 @@ session.getRandomSessionID<-function(){
 #otherwise generates new random session id and registers it.
 session.start<-function(){
 	dbutil.openConnection();
-	defaultSessId<<-request.getCookie("RSESSID");
-	if (nchar(defaultSessId)<1) {
-		defaultSessId<<-session.getRandomSessionID();
-		response.setCookie("RSESSID",defaultSessId);
+	sid<-request.getCookie("RSESSID");
+	assign("defaultSessId", sid, envir = globalenv())
+	if (nchar(get("defaultSessId", envir = globalenv()))<1) {
+		sid<-session.getRandomSessionID()
+		assign ("defaultSessId", sid, envir = globalenv())
+		response.setCookie("RSESSID",sid)
 	}
 }
 
@@ -168,13 +178,13 @@ session.start<-function(){
 session.delete<-function(){
 	sessid<-session.getSessionId();
 	sql<-paste("delete from rsessions where sessionid='",sessid,"'",sep="");
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()) ,sql);
 }
 
 #Deletes given session value
 session.deleteParameter<-function(paramName){
         sessid<-session.getSessionId();
-        res<-sqliteQuickSQL (db_Connection, paste("delete from rsessions where sessionid='",sessid,"' and parameter='",paramName,"'",sep=""));
+        res<-sqliteQuickSQL ( get("db_Connection", envir=globalenv()) , paste("delete from rsessions where sessionid='",sessid,"' and parameter='",paramName,"'",sep=""));
 }
 
 #Updates and creates a session parameter.
@@ -187,13 +197,13 @@ session.setParameter<-function(paramName,paramValue){
 	}else{
 		sql<-paste("update rsessions set value='",myVal,"' where sessionid='",sessid,"' and parameter='",paramName,"'",sep="");
 	}
-	res<-sqliteQuickSQL (db_Connection, sql);
+	res<-sqliteQuickSQL (get("db_Connection", envir=globalenv()), sql);
 }
 
 #Returns value of a given session variable
 session.getParameter<-function(paramName){
 	sessid<-session.getSessionId();
-	res<-sqliteQuickSQL (db_Connection, paste("select value from rsessions where sessionid='",sessid,"' and parameter='",paramName,"'",sep=""));
+	res<-sqliteQuickSQL (get("db_Connection", envir=globalenv()), paste("select value from rsessions where sessionid='",sessid,"' and parameter='",paramName,"'",sep=""));
 	if (is.na(res[1,1])){
 		return("");
 	}else{
@@ -206,14 +216,14 @@ session.getAllParameters<-function(){
 	dbutil.openConnection();
 	sessid<-session.getSessionId();
 	sql<-paste("select * from rsessions where sessionid='",sessid,"'",sep="");
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()),sql);
 	return(res);
 }
 
 #Returns session id of current client.
 session.getSessionId<-function(){
 	sessid<-request.getCookie("RSESSID");
-	if (nchar(sessid)<1) sessid<-defaultSessId;
+	if (nchar(sessid)<1) sessid<-get("defaultSessId", envir=globalenv());
 	return(sessid);
 }
 
@@ -228,14 +238,14 @@ application.setParameter<-function(paramName, paramValue){
 	}else{
 		sql<-paste("update rapplication set value='",myVal,"' where parameter='",paramName,"'",sep="");
 	}
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()),sql);
 }
 
 #Returns value of a public variable.
 application.getParameter<-function(paramName){
 	dbutil.openConnection();
 	sql<-paste("select value from rapplication where parameter='",paramName,"'",sep="");
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()),sql);
 	if (is.na(res[1,1])){
 		return("");
 	}else{
@@ -247,7 +257,7 @@ application.getParameter<-function(paramName){
 application.getAllParameters<-function(){
 	dbutil.openConnection();
 	sql<-"select * from rapplication";
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()),sql);
 	return(res);
 }
 
@@ -257,7 +267,7 @@ application.getAllParameters<-function(){
 application.delete<-function(){
 	dbutil.openConnection();
 	sql<-"delete from rapplication";
-	res<-sqliteQuickSQL(db_Connection,sql);
+	res<-sqliteQuickSQL(get("db_Connection", envir=globalenv()),sql);
 }
 
 

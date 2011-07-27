@@ -14,10 +14,9 @@ variables support.
 \tabular{ll}{
 Package: \tab SSSR\cr
 Type: \tab Package\cr
-Version: \tab 1.0\cr
-Date: \tab 2010-03-30\cr
-License: \tab No licence\cr
-LazyLoad: \tab yes\cr
+Version: \tab 1.0.5\cr
+Date: \tab 2011-07-27\cr
+License: \tab LGPL\cr
 }
 
 }
@@ -34,7 +33,7 @@ Package uses RSQLite package for storing session and application parameters.
 
 \examples{
 ~#!/usr/bin/Rscript
-require("SSSR")
+#require("SSSR")
 response.setContentType()
 session.start()
 response.startDocument()
